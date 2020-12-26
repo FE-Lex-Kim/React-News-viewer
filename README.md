@@ -1,70 +1,145 @@
-# Getting Started with Create React App
+# News-viewer README
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+<br>
 
-## Available Scripts
+## 트러블 슈팅
 
-In the project directory, you can run:
+<br>
 
-### `npm start`
+### useEffect를 사용했을때 그안에서 상태값이 바뀐경우 코드순서
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+<br>
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+useEffect를 사용했을때 그안에서 상태값이 바뀐경우 코드의 순서가 어떻게 바뀌는지 이해가 안됐다.
 
-### `npm test`
+React 공식문서의 LifeCycle,
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+useEffect부분도 다시 정독한뒤
 
-### `npm run build`
+[Dan Abramov](https://rinae.dev/posts/a-complete-guide-to-useeffect-ko) 이 작성한 UseEffect 완벽 가이드 번역본을 읽고나니 정리가 되었다.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+<br>
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+상태가 바뀌면 업데이트가 되고
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+클래스 컴포넌트에서는 렌더함수가 실행되는데 
 
-### `npm run eject`
+함수 컴포넌트에서는 컴포넌트 함수자체가 다시 실행된다.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+<br>
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+그 이후 상태가 변경된 변수가 useState()에 의해 retrun 값으로 변경이된다.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+그이후 함수형 컴포넌트의 return의 상태의 변경부분만 비교한뒤 브라우저의 DOM에 적용한다.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+<br>
 
-## Learn More
+useEffect를 사용하면 함수형 컴포넌트의 실행순서가 헷갈린다.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+정확히 어떤식으로 Lifecycle이 동작하는지 알아야한다.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+<br>
 
-### Code Splitting
+예제)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```jsx
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import NewsItem from './NewsItem';
+import axios from 'axios';
 
-### Analyzing the Bundle Size
+const NewsListBlock = styled.div`
+  box-sizing: border-box;
+  padding-bottom: 3rem;
+  width: 768px;
+  margin: 0 auto;
+  margin-top: 2rem;
+  @media screen and (max-width: 768px) {
+    width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+`;
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+const NewsList = () => {
+  const [articles, setArticles] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-### Making a Progressive Web App
+  useEffect(() => {
+    // async를 사용하는 함수 따로 선언
+    const fetchData = async () => {
+      try {
+        console.log(1);
+        setLoading(true);
+        const response = await axios.get(
+          'https://newsapi.org/v2/top-headlines?country=kr&apiKey=0a8c4202385d4ec1bb93b7e277b3c51f',
+        );
+        setArticles(response.data.articles);
+        console.log(2);
+      } catch (e) {
+        console.log(3);
+      }
+      setLoading(false);
+      console.log(4);
+    };
+    fetchData();
+  }, []);
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+  // 대기 중일 때
+  if (loading) {
+    console.log(5);
+    return <NewsListBlock>대기 중…</NewsListBlock>;
+  }
+  // 아직 articles 값이 설정되지 않았을 때
+  if (!articles) {
+    console.log(6);
+    return null;
+  }
 
-### Advanced Configuration
+  console.log(7);
+  // articles 값이 유효할 때
+  return (
+    <NewsListBlock>
+      {articles.map((article) => (
+        <NewsItem key={article.url} article={article} />
+      ))}
+    </NewsListBlock>
+  );
+};
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+export default NewsList;
+```
 
-### Deployment
+<br>
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+**코드실행순서**
 
-### `npm run build` fails to minify
+1 . 컴포넌트가 마운트 되고난후
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+articles가 falsy값이므로 `6`이 콘솔에 찍힌다.
+
+<br>
+
+2 . 이후 마운트가 된이후 useEffect가 실행된다.
+
+그이유는 useEffect의 두번째 인자로 `[]` 빈배열을 주었기 때문이다.
+
+<br>
+
+3 . useEffect 함수안에서 try문의 첫번째 `1` 이 찍힌후 setLoading으로 상태값을 변경했으므로 함수 컴포넌트가 reRendering되어 if문안의 loadting이 trusy값이므로 콘솔에 `5`가 찍힌후 대기중이 랜더가 된다.
+
+<br>
+
+4. 다시axios가 실행된후, setArticles가 실행되어 상태가 변하므로 함수컴포넌트가 리랜더링 된후 loading은 아직도 true값이므로 다시 콘솔에 `5` 가 찍한다.
+
+<br>
+
+5. 이후에 다시 useEffect로 돌아와 콘솔에 `2`가 찍힌다.
+
+<br>
+
+6. try문이 종료 된후 setLoading이 false가 되므로 다시 함수 컴포넌트가 리랜더링 되어 loading if문을 지나 articles if문을 지나 콘솔에 `7` 이 찍히고 retrun문으로 JSX가 반환된다.
+
+<br>
+
+7. 그이후 다시 useEffect로 돌아와 콘솔에 4가 찍히고 마무리 된다.
